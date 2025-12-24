@@ -17,6 +17,7 @@ try:
     from reportlab.lib.units import mm
     from reportlab.pdfgen import canvas
     from reportlab.lib import colors
+    from reportlab.lib.utils import ImageReader
     import qrcode
     from io import BytesIO
     from PIL import Image
@@ -24,6 +25,10 @@ except ImportError as e:
     print("Error: Missing required libraries.")
     print("Please install: pip install reportlab qrcode[pil] pillow")
     raise e
+
+
+# Numbers to exclude from generated tickets (missing from physical set)
+EXCLUDED_NUMBERS = [20, 72]
 
 
 class BritishBingoCard:
@@ -50,7 +55,7 @@ class BritishBingoCard:
         # Generate numbers for each column
         for col in range(9):
             min_val, max_val = column_ranges[col]
-            available_numbers = list(range(min_val, max_val + 1))
+            available_numbers = [n for n in range(min_val, max_val + 1) if n not in EXCLUDED_NUMBERS]
             random.shuffle(available_numbers)
 
             # Each column gets 1-3 numbers distributed across rows
@@ -88,7 +93,8 @@ class BritishBingoCard:
                     min_val, max_val = self._get_column_range(col)
                     # Find a number not already used in this column
                     used_in_col = [self.grid[r][col] for r in range(3)]
-                    available = [n for n in range(min_val, max_val + 1) if n not in used_in_col]
+                    available = [n for n in range(min_val, max_val + 1)
+                                if n not in used_in_col and n not in EXCLUDED_NUMBERS]
                     if available:
                         self.grid[row_idx][col] = random.choice(available)
 
@@ -158,14 +164,16 @@ def generate_qr_code(ticket_id: int, card_data: List[int]) -> Image:
 
 
 def draw_ticket_front(c: canvas.Canvas, card_data: List[int], x: float, y: float,
-                     ticket_id: int, cell_width: float = 10*mm, cell_height: float = 12*mm):
+                     ticket_id: int, scale: float = 1.0):
     """Draw a bingo ticket on the PDF (front side with numbers)"""
-    # Title
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(x, y + cell_height * 3 + 5*mm, f"Ticket #{ticket_id}")
+    # Calculate dimensions based on scale
+    cell_width = 10 * mm * scale
+    cell_height = 12 * mm * scale
+    font_size = 14 * scale
+    id_font_size = 8 * scale
 
     # Draw grid
-    c.setFont("Helvetica-Bold", 14)
+    c.setFont("Helvetica-Bold", font_size)
     for row in range(3):
         for col in range(9):
             cell_x = x + col * cell_width
@@ -179,15 +187,26 @@ def draw_ticket_front(c: canvas.Canvas, card_data: List[int], x: float, y: float
             if card_data[idx] != 0:
                 # Center the number in the cell
                 num_str = str(card_data[idx])
-                text_width = c.stringWidth(num_str, "Helvetica-Bold", 14)
+                text_width = c.stringWidth(num_str, "Helvetica-Bold", font_size)
                 text_x = cell_x + (cell_width - text_width) / 2
-                text_y = cell_y + (cell_height - 5*mm) / 2
+                text_y = cell_y + (cell_height - 5*mm*scale) / 2
                 c.drawString(text_x, text_y, num_str)
+
+    # Draw 4-digit ticket ID on bottom left
+    c.setFont("Helvetica", id_font_size)
+    id_str = f"{ticket_id:04d}"
+    c.drawString(x, y - 4*mm*scale, id_str)
 
 
 def draw_ticket_back(c: canvas.Canvas, ticket_id: int, card_data: List[int],
-                    x: float, y: float, qr_size: float = 30*mm):
+                    x: float, y: float, scale: float = 1.0):
     """Draw the back of a ticket with QR code"""
+    # Calculate dimensions based on scale
+    qr_size = 30 * mm * scale
+    ticket_width = 90 * mm * scale
+    ticket_height = 36 * mm * scale
+    id_font_size = 8 * scale
+
     # Generate QR code
     qr_img = generate_qr_code(ticket_id, card_data)
 
@@ -197,21 +216,22 @@ def draw_ticket_back(c: canvas.Canvas, ticket_id: int, card_data: List[int],
     img_buffer.seek(0)
 
     # Center QR code in ticket area
-    qr_x = x + (90*mm - qr_size) / 2
-    qr_y = y + (36*mm - qr_size) / 2 + 5*mm
+    qr_x = x + (ticket_width - qr_size) / 2
+    qr_y = y + (ticket_height - qr_size) / 2 + 5*mm*scale
 
-    # Draw QR code
-    c.drawImage(img_buffer, qr_x, qr_y, width=qr_size, height=qr_size)
+    # Draw QR code using ImageReader
+    c.drawImage(ImageReader(img_buffer), qr_x, qr_y, width=qr_size, height=qr_size)
 
-    # Add ticket ID below QR code
-    c.setFont("Helvetica", 8)
-    text = f"Ticket #{ticket_id}"
-    text_width = c.stringWidth(text, "Helvetica", 8)
-    c.drawString(x + (90*mm - text_width) / 2, qr_y - 5*mm, text)
+    # Add 4-digit ticket ID below QR code
+    c.setFont("Helvetica", id_font_size)
+    id_str = f"{ticket_id:04d}"
+    text_width = c.stringWidth(id_str, "Helvetica", id_font_size)
+    c.drawString(x + (ticket_width - text_width) / 2, qr_y - 5*mm*scale, id_str)
 
 
 def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf",
-                        output_csv: str = "bingo_tickets.csv"):
+                        output_csv: str = "bingo_tickets.csv", scale: float = 1.0,
+                        title: str = None, title_font: str = "Christmas Merryland"):
     """
     Generate bingo tickets PDF and CSV
 
@@ -219,10 +239,18 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
         num_tickets: Number of tickets to generate
         output_pdf: Output PDF filename
         output_csv: Output CSV filename
+        scale: Scale factor for ticket size and fonts (1.0 to 2.0)
+        title: Optional title to display at top of front pages
+        title_font: Font name for the title (default: Christmas Merryland)
     """
+    # Generate random unique 4-digit ticket IDs
+    all_ids = list(range(1000, 10000))
+    random.shuffle(all_ids)
+    ticket_ids = all_ids[:num_tickets]
+
     # Generate all tickets
     tickets = []
-    for ticket_id in range(1, num_tickets + 1):
+    for ticket_id in ticket_ids:
         card = BritishBingoCard()
         card.generate()
         card_data = card.to_flat_list()
@@ -232,16 +260,25 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
     c = canvas.Canvas(output_pdf, pagesize=A4)
     page_width, page_height = A4
 
-    # Calculate positions for 3 tickets per page
-    ticket_width = 90 * mm
-    ticket_height = 50 * mm
+    # Calculate positions for 3 tickets per page (scaled)
+    ticket_width = 90 * mm * scale
+    ticket_height = 50 * mm * scale
     margin_left = (page_width - ticket_width) / 2
+
+    # Base spacing for tickets
+    base_y_offset = 70 * mm
+    ticket_spacing = 70 * mm
+
+    # Adjust starting position if there's a title
+    title_height = 0
+    if title:
+        title_height = 15 * mm
 
     # Positions for 3 tickets vertically on a page
     y_positions = [
-        page_height - 70*mm,   # Top ticket
-        page_height - 140*mm,  # Middle ticket
-        page_height - 210*mm,  # Bottom ticket
+        page_height - base_y_offset * scale - title_height,  # Top ticket
+        page_height - (base_y_offset + ticket_spacing) * scale - title_height,  # Middle ticket
+        page_height - (base_y_offset + 2 * ticket_spacing) * scale - title_height,  # Bottom ticket
     ]
 
     # Generate pages
@@ -249,14 +286,20 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
         tickets_on_page = tickets[page_start:page_start + 3]
 
         # Draw front side
+        if title:
+            # Draw title at top of page
+            c.setFont(title_font, 18)
+            title_width = c.stringWidth(title, title_font, 18)
+            c.drawString((page_width - title_width) / 2, page_height - 30*mm, title)
+
         for idx, (ticket_id, card_data) in enumerate(tickets_on_page):
-            draw_ticket_front(c, card_data, margin_left, y_positions[idx], ticket_id)
+            draw_ticket_front(c, card_data, margin_left, y_positions[idx], ticket_id, scale)
 
         c.showPage()
 
         # Draw back side (reversed order for proper alignment when printed duplex)
         for idx, (ticket_id, card_data) in enumerate(reversed(tickets_on_page)):
-            draw_ticket_back(c, ticket_id, card_data, margin_left, y_positions[idx])
+            draw_ticket_back(c, ticket_id, card_data, margin_left, y_positions[idx], scale)
 
         c.showPage()
 
@@ -290,7 +333,18 @@ if __name__ == "__main__":
                        help='Output PDF filename (default: bingo_tickets.pdf)')
     parser.add_argument('-c', '--csv', type=str, default='bingo_tickets.csv',
                        help='Output CSV filename (default: bingo_tickets.csv)')
+    parser.add_argument('-s', '--scale', type=float, default=1.0,
+                       help='Scale factor for ticket size and fonts, 1.0 to 2.0 (default: 1.0)')
+    parser.add_argument('-t', '--title', type=str, default=None,
+                       help='Title to display at top of front pages (default: none)')
+    parser.add_argument('-f', '--title-font', type=str, default='Christmas Merryland',
+                       help='Font name for the title (default: Christmas Merryland)')
 
     args = parser.parse_args()
 
-    generate_tickets_pdf(args.num_tickets, args.output, args.csv)
+    # Validate scale
+    if args.scale < 1.0 or args.scale > 2.0:
+        parser.error("Scale must be between 1.0 and 2.0")
+
+    generate_tickets_pdf(args.num_tickets, args.output, args.csv, args.scale,
+                        args.title, args.title_font)
