@@ -37,8 +37,8 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, calledNumbers }) 
         >
           <Text fontWeight="bold" color="yellow.800">
             {completedRowsCount === 3
-              ? 'FULL HOUSE! 🎉'
-              : `${completedRowsCount} ${completedRowsCount === 1 ? 'Line' : 'Lines'} Complete!`}
+              ? '¡BINGO! 🎉'
+              : `${completedRowsCount} ${completedRowsCount === 1 ? 'Línea' : 'Líneas'} ${completedRowsCount === 1 ? 'Completa' : 'Completas'}!`}
           </Text>
         </Box>
       )}
@@ -116,19 +116,19 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, calledNumbers }) 
         borderColor="gray.200"
       >
         <Text fontSize="sm" color="gray.700">
-          <strong>Legend:</strong>
+          <strong>Leyenda:</strong>
         </Text>
         <Grid templateColumns="repeat(2, 1fr)" gap={2} mt={2}>
           <GridItem>
             <Box display="flex" alignItems="center" gap={2}>
               <Box w="20px" h="20px" bg="green.400" borderRadius="sm" />
-              <Text fontSize="sm">Called number</Text>
+              <Text fontSize="sm">Número cantado</Text>
             </Box>
           </GridItem>
           <GridItem>
             <Box display="flex" alignItems="center" gap={2}>
               <Box w="20px" h="20px" bg="orange.400" borderRadius="sm" />
-              <Text fontSize="sm">Complete line</Text>
+              <Text fontSize="sm">Línea completa</Text>
             </Box>
           </GridItem>
         </Grid>

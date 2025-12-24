@@ -78,7 +78,12 @@ function App() {
     if (activeTab === 'input') {
       // Small delay to ensure the DOM is ready
       setTimeout(() => {
-        inputRef.current?.focus();
+        const input = inputRef.current;
+        if (input) {
+          input.focus();
+          // For mobile Safari, we need to trigger click to show keyboard
+          input.click();
+        }
       }, 100);
     }
   }, [activeTab]);
@@ -87,8 +92,8 @@ function App() {
     const num = parseInt(inputValue);
     if (isNaN(num) || num < 1 || num > 90) {
       toaster.create({
-        title: 'Invalid number',
-        description: 'Please enter a number between 1 and 90',
+        title: 'Número inválido',
+        description: 'Introduce un número entre 1 y 90',
         type: 'error',
         duration: 2000,
       });
@@ -97,8 +102,8 @@ function App() {
 
     if (MISSING_NUMBERS.includes(num)) {
       toaster.create({
-        title: 'Missing number',
-        description: `Number ${num} is excluded from this game`,
+        title: 'Número excluido',
+        description: `El número ${num} está excluido de este juego`,
         type: 'error',
         duration: 2000,
       });
@@ -107,8 +112,8 @@ function App() {
 
     if (calledNumbers.has(num)) {
       toaster.create({
-        title: 'Already called',
-        description: `Number ${num} has already been called`,
+        title: 'Ya cantado',
+        description: `El número ${num} ya ha sido cantado`,
         type: 'warning',
         duration: 2000,
       });
@@ -118,16 +123,21 @@ function App() {
     setCalledNumbersArray([...calledNumbersArray, num]);
     setInputValue('');
     toaster.create({
-      title: 'Number called',
-      description: `Number ${num} has been called`,
+      title: 'Número cantado',
+      description: `El número ${num} ha sido cantado`,
       type: 'success',
       duration: 1000,
     });
+  };
 
-    // Refocus the input for quick consecutive entry
+  const handleCallButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Prevent the button from stealing focus from the input
+    e.preventDefault();
+    handleAddNumber();
+    // Keep focus on input to maintain keyboard
     setTimeout(() => {
       inputRef.current?.focus();
-    }, 50);
+    }, 0);
   };
 
   const handleUndo = () => {
@@ -136,11 +146,21 @@ function App() {
     const lastNumber = calledNumbersArray[calledNumbersArray.length - 1];
     setCalledNumbersArray(calledNumbersArray.slice(0, -1));
     toaster.create({
-      title: 'Number removed',
-      description: `Number ${lastNumber} has been removed`,
+      title: 'Número eliminado',
+      description: `El número ${lastNumber} ha sido eliminado`,
       type: 'info',
       duration: 1500,
     });
+  };
+
+  const handleUndoButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Prevent the button from stealing focus from the input
+    e.preventDefault();
+    handleUndo();
+    // Keep focus on input to maintain keyboard
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
 
   const handleQRScan = (data: TicketData) => {
@@ -156,10 +176,10 @@ function App() {
       <Stack gap={4} align="stretch">
         <Box textAlign="center">
           <Heading as="h1" size="xl" mb={2}>
-            Bingo Game Manager
+            Gestor de Bingo
           </Heading>
           <Text fontSize="md" color="gray.600">
-            British Bingo (1-90)
+            Bingo (1-90)
           </Text>
         </Box>
 
@@ -170,23 +190,23 @@ function App() {
           variant="enclosed"
         >
           <Tabs.List>
-            <Tabs.Trigger value="input">Input</Tabs.Trigger>
-            <Tabs.Trigger value="grid">Grid View</Tabs.Trigger>
-            <Tabs.Trigger value="scan">Scan Ticket</Tabs.Trigger>
+            <Tabs.Trigger value="input">Entrada</Tabs.Trigger>
+            <Tabs.Trigger value="grid">Cuadrícula</Tabs.Trigger>
+            <Tabs.Trigger value="scan">Escanear Cartón</Tabs.Trigger>
           </Tabs.List>
 
           {/* Input and History Tab */}
           <Tabs.Content value="input">
               <Stack gap={4} align="stretch">
                 <Box>
-                  <Text fontWeight="bold" mb={2}>Call a Number</Text>
+                  <Text fontWeight="bold" mb={2}>Cantar un Número</Text>
                   <Stack direction="row" gap={2}>
                     <Input
                       ref={inputRef}
                       type="number"
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      placeholder="Enter number (1-90)"
+                      placeholder="Introduce número (1-90)"
                       value={inputValue}
                       onChange={(e:any) => setInputValue(e.target.value)}
                       onKeyPress={(e:any) => {
@@ -199,15 +219,16 @@ function App() {
                       flex={1}
                       fontSize="16px"
                     />
-                    <Button colorScheme="blue" onClick={handleAddNumber}>
-                      Call
+                    <Button colorScheme="blue" onMouseDown={handleCallButtonClick} onTouchStart={handleCallButtonClick}>
+                      Cantar
                     </Button>
                     <Button
                       colorScheme="orange"
-                      onClick={handleUndo}
+                      onMouseDown={handleUndoButtonClick}
+                      onTouchStart={handleUndoButtonClick}
                       disabled={calledNumbersArray.length === 0}
                     >
-                      Undo
+                      Deshacer
                     </Button>
                   </Stack>
                 </Box>
@@ -215,7 +236,7 @@ function App() {
                 <Box>
                   <Stack direction="row" justify="space-between" mb={2}>
                     <Text fontWeight="bold">
-                      Called Numbers ({calledNumbersArray.length}/{90 - MISSING_NUMBERS.length})
+                      Números Cantados ({calledNumbersArray.length}/{90 - MISSING_NUMBERS.length})
                     </Text>
                     {calledNumbersArray.length > 0 && (
                       <Button
@@ -223,19 +244,19 @@ function App() {
                         colorScheme="red"
                         variant="outline"
                         onClick={() => {
-                          if (window.confirm('Are you sure you want to reset all called numbers?')) {
+                          if (window.confirm('¿Estás seguro de que quieres reiniciar todos los números cantados?')) {
                             setCalledNumbersArray([]);
                             sessionStorage.removeItem(SESSION_STORAGE_KEY);
                             toaster.create({
-                              title: 'Reset complete',
-                              description: 'All called numbers have been cleared',
+                              title: 'Reinicio completo',
+                              description: 'Todos los números cantados han sido borrados',
                               type: 'info',
                               duration: 2000,
                             });
                           }
                         }}
                       >
-                        Reset
+                        Reiniciar
                       </Button>
                     )}
                   </Stack>
@@ -249,7 +270,7 @@ function App() {
                       border="1px solid"
                       borderColor="gray.200"
                     >
-                      <Text color="gray.500">No numbers called yet</Text>
+                      <Text color="gray.500">Aún no se han cantado números</Text>
                     </Box>
                   ) : (
                     <Box
@@ -288,7 +309,7 @@ function App() {
           <Tabs.Content value="grid">
               <Stack gap={3} align="stretch">
                 <Text fontWeight="bold" textAlign="center">
-                  All Numbers (1-90)
+                  Todos los Números (1-90)
                 </Text>
                 <Grid templateColumns="repeat(9, 1fr)" gap={1}>
                   {Array.from({ length: 90 }, (_, i) => i + 1).map((num) => {
@@ -333,20 +354,20 @@ function App() {
                   borderColor="gray.200"
                 >
                   <Text fontSize="sm" fontWeight="bold" mb={2}>
-                    Legend:
+                    Leyenda:
                   </Text>
                   <Grid templateColumns="repeat(1, 1fr)" gap={2}>
                     <Box display="flex" alignItems="center" gap={2}>
                       <Box w="20px" h="20px" bg="green.500" borderRadius="sm" />
-                      <Text fontSize="sm">Called numbers</Text>
+                      <Text fontSize="sm">Números cantados</Text>
                     </Box>
                     <Box display="flex" alignItems="center" gap={2}>
                       <Box w="20px" h="20px" bg="gray.200" borderRadius="sm" />
-                      <Text fontSize="sm">Not yet called</Text>
+                      <Text fontSize="sm">Aún no cantados</Text>
                     </Box>
                     <Box display="flex" alignItems="center" gap={2}>
                       <Box w="20px" h="20px" bg="red.400" borderRadius="sm" />
-                      <Text fontSize="sm">Missing from game (will never be called)</Text>
+                      <Text fontSize="sm">Excluidos del juego (nunca se cantarán)</Text>
                     </Box>
                   </Grid>
                 </Box>
@@ -361,10 +382,10 @@ function App() {
                     borderColor="red.200"
                   >
                     <Text fontWeight="bold" mb={2} color="red.700">
-                      Missing Numbers ({MISSING_NUMBERS.length})
+                      Números Excluidos ({MISSING_NUMBERS.length})
                     </Text>
                     <Text fontSize="sm" color="red.700">
-                      These numbers are excluded from this game: {MISSING_NUMBERS.join(', ')}
+                      Estos números están excluidos de este juego: {MISSING_NUMBERS.join(', ')}
                     </Text>
                   </Box>
                 )}
@@ -381,8 +402,12 @@ function App() {
       {/* Ticket Display Dialog */}
       <DialogRoot open={isDialogOpen} onOpenChange={(e: { open: boolean }) => setIsDialogOpen(e.open)} size={{ base: 'full', sm: 'xl' }}>
         <DialogBackdrop />
-        <DialogContent maxW={{ base: '100vw', sm: '90vw', md: '600px' }}>
-          <DialogHeader>Scanned Ticket #{scannedTicket?.id}</DialogHeader>
+        <DialogContent
+          maxW={{ base: '100vw', sm: '90vw', md: '600px' }}
+          onClick={() => setIsDialogOpen(false)}
+          cursor="pointer"
+        >
+          <DialogHeader>Cartón Escaneado #{scannedTicket?.id}</DialogHeader>
           <DialogCloseTrigger />
           <DialogBody pb={6} overflowX="auto">
             {scannedTicket && (

@@ -55,8 +55,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
       } catch (permError) {
         console.error('Camera permission error:', permError);
         toaster.create({
-          title: 'Camera Permission Denied',
-          description: 'Please allow camera access in your browser settings.',
+          title: 'Permiso de Cámara Denegado',
+          description: 'Por favor, permite el acceso a la cámara en la configuración de tu navegador.',
           type: 'error',
           duration: 5000,
         });
@@ -91,15 +91,15 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
             onScan(ticketData);
             stopScanning();
             toaster.create({
-              title: 'Ticket scanned',
-              description: `Ticket #${ticketData.id} has been scanned`,
+              title: 'Cartón escaneado',
+              description: `El cartón #${ticketData.id} ha sido escaneado`,
               type: 'success',
               duration: 2000,
             });
           } else {
             toaster.create({
-              title: 'Invalid QR code',
-              description: 'The scanned QR code is not a valid bingo ticket',
+              title: 'Código QR inválido',
+              description: 'El código QR escaneado no es un cartón de bingo válido',
               type: 'error',
               duration: 2000,
             });
@@ -113,24 +113,24 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
       setIsScanning(true);
     } catch (error) {
       console.error('Error starting scanner:', error);
-      let errorMessage = 'Unable to access camera. ';
+      let errorMessage = 'No se puede acceder a la cámara. ';
 
       if (error instanceof Error) {
         if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-          errorMessage += 'Please allow camera access in your browser settings.';
+          errorMessage += 'Por favor, permite el acceso a la cámara en la configuración de tu navegador.';
         } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-          errorMessage += 'No camera found on this device.';
+          errorMessage += 'No se encontró cámara en este dispositivo.';
         } else if (error.name === 'NotReadableError') {
-          errorMessage += 'Camera is already in use by another application.';
+          errorMessage += 'La cámara ya está en uso por otra aplicación.';
         } else if (error.name === 'SecurityError') {
-          errorMessage += 'Camera access requires HTTPS connection.';
+          errorMessage += 'El acceso a la cámara requiere conexión HTTPS.';
         } else {
-          errorMessage += error.message || 'Please check permissions.';
+          errorMessage += error.message || 'Por favor, verifica los permisos.';
         }
       }
 
       toaster.create({
-        title: 'Camera Error',
+        title: 'Error de Cámara',
         description: errorMessage,
         type: 'error',
         duration: 5000,
@@ -158,8 +158,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toaster.create({
-        title: 'Invalid File',
-        description: 'Please select an image file',
+        title: 'Archivo Inválido',
+        description: 'Por favor, selecciona un archivo de imagen',
         type: 'error',
         duration: 3000,
       });
@@ -175,15 +175,15 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
       if (ticketData) {
         onScan(ticketData);
         toaster.create({
-          title: 'Ticket scanned',
-          description: `Ticket #${ticketData.id} has been scanned`,
+          title: 'Cartón escaneado',
+          description: `El cartón #${ticketData.id} ha sido escaneado`,
           type: 'success',
           duration: 2000,
         });
       } else {
         toaster.create({
-          title: 'Invalid QR code',
-          description: 'The image does not contain a valid bingo ticket QR code',
+          title: 'Código QR inválido',
+          description: 'La imagen no contiene un código QR de cartón de bingo válido',
           type: 'error',
           duration: 3000,
         });
@@ -194,8 +194,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
     } catch (error) {
       console.error('Error scanning file:', error);
       toaster.create({
-        title: 'Scan Failed',
-        description: 'Could not read QR code from the image. Please try another image.',
+        title: 'Escaneo Fallido',
+        description: 'No se pudo leer el código QR de la imagen. Por favor, prueba con otra imagen.',
         type: 'error',
         duration: 3000,
       });
@@ -236,14 +236,14 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
       {!isScanning ? (
         <Box textAlign="center">
           <Text mb={4} color="gray.600">
-            Scan a bingo ticket QR code to view the ticket
+            Escanea un código QR de un cartón de bingo para verlo
           </Text>
           <Stack direction={{ base: 'column', sm: 'row' }} justify="center" gap={3}>
             <Button colorScheme="blue" size="lg" onClick={startScanning}>
-              Start Camera
+              Iniciar Cámara
             </Button>
             <Button colorScheme="teal" size="lg" onClick={handleUploadClick}>
-              Upload Image
+              Subir Imagen
             </Button>
           </Stack>
 
@@ -258,7 +258,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
         </Box>
       ) : (
         <Button colorScheme="red" onClick={stopScanning}>
-          Stop Scanning
+          Detener Escaneo
         </Button>
       )}
 
@@ -270,8 +270,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
         borderColor="blue.200"
       >
         <Text fontSize="sm" color="blue.700">
-          <strong>Note:</strong> Point your camera at a bingo ticket QR code to scan it,
-          or upload an image containing a QR code. The ticket will be displayed with called numbers highlighted.
+          <strong>Nota:</strong> Apunta tu cámara al código QR de un cartón de bingo para escanearlo,
+          o sube una imagen que contenga un código QR. El cartón se mostrará con los números cantados resaltados.
         </Text>
       </Box>
     </Stack>
