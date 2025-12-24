@@ -1,25 +1,19 @@
 import React from 'react';
-import logo from './logo.svg';
+import { Box, Container, Heading, Text } from '@chakra-ui/react';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Container maxW="container.xl" py={8}>
+      <Box textAlign="center">
+        <Heading as="h1" size="2xl" mb={4}>
+          Bingo Game Manager
+        </Heading>
+        <Text fontSize="xl" color="gray.600">
+          Welcome to the Bingo Game Manager
+        </Text>
+      </Box>
+    </Container>
   );
 }
 
