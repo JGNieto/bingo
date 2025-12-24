@@ -11,6 +11,7 @@ interface QRScannerProps {
 const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
   const [isScanning, setIsScanning] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const parseQRData = (qrData: string): TicketData | null => {
     try {
@@ -150,6 +151,66 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toaster.create({
+        title: 'Invalid File',
+        description: 'Please select an image file',
+        type: 'error',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      const scanner = new Html5Qrcode('qr-file-reader');
+
+      const decodedText = await scanner.scanFile(file, true);
+
+      const ticketData = parseQRData(decodedText);
+      if (ticketData) {
+        onScan(ticketData);
+        toaster.create({
+          title: 'Ticket scanned',
+          description: `Ticket #${ticketData.id} has been scanned`,
+          type: 'success',
+          duration: 2000,
+        });
+      } else {
+        toaster.create({
+          title: 'Invalid QR code',
+          description: 'The image does not contain a valid bingo ticket QR code',
+          type: 'error',
+          duration: 3000,
+        });
+      }
+
+      // Clear the scanner instance
+      scanner.clear();
+    } catch (error) {
+      console.error('Error scanning file:', error);
+      toaster.create({
+        title: 'Scan Failed',
+        description: 'Could not read QR code from the image. Please try another image.',
+        type: 'error',
+        duration: 3000,
+      });
+    }
+
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
@@ -160,6 +221,10 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
 
   return (
     <Stack gap={4} align="stretch">
+      {/* Hidden div for file scanning */}
+      <Box id="qr-file-reader" display="none" />
+
+      {/* Camera scanner */}
       <Box
         id="qr-reader"
         width="100%"
@@ -173,9 +238,23 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
           <Text mb={4} color="gray.600">
             Scan a bingo ticket QR code to view the ticket
           </Text>
-          <Button colorScheme="blue" size="lg" onClick={startScanning}>
-            Start Camera
-          </Button>
+          <Stack direction={{ base: 'column', sm: 'row' }} justify="center" gap={3}>
+            <Button colorScheme="blue" size="lg" onClick={startScanning}>
+              Start Camera
+            </Button>
+            <Button colorScheme="teal" size="lg" onClick={handleUploadClick}>
+              Upload Image
+            </Button>
+          </Stack>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
         </Box>
       ) : (
         <Button colorScheme="red" onClick={stopScanning}>
@@ -191,8 +270,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
         borderColor="blue.200"
       >
         <Text fontSize="sm" color="blue.700">
-          <strong>Note:</strong> Point your camera at a bingo ticket QR code to scan it.
-          The ticket will be displayed with called numbers highlighted.
+          <strong>Note:</strong> Point your camera at a bingo ticket QR code to scan it,
+          or upload an image containing a QR code. The ticket will be displayed with called numbers highlighted.
         </Text>
       </Box>
     </Stack>
