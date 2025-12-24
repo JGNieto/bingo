@@ -202,11 +202,11 @@ def draw_ticket_front(c: canvas.Canvas, card_data: List[int], x: float, y: float
 
 def draw_ticket_back(c: canvas.Canvas, ticket_id: int, card_data: List[int],
                     x: float, y: float, scale: float = 1.0):
-    """Draw the back of a ticket with QR code"""
+    """Draw the back of a ticket with QR code centered in the same space as front ticket"""
     # Calculate dimensions based on scale
     qr_size = 30 * mm * scale
     ticket_width = 90 * mm * scale
-    ticket_height = 36 * mm * scale
+    ticket_height = 36 * mm * scale  # Same height as front ticket grid
     id_font_size = 8 * scale
 
     # Generate QR code
@@ -217,9 +217,9 @@ def draw_ticket_back(c: canvas.Canvas, ticket_id: int, card_data: List[int],
     qr_img.save(img_buffer, format='PNG')
     img_buffer.seek(0)
 
-    # Center QR code in ticket area
+    # Center QR code horizontally and vertically in ticket area
     qr_x = x + (ticket_width - qr_size) / 2
-    qr_y = y + (ticket_height - qr_size) / 2 + 5*mm*scale
+    qr_y = y + (ticket_height - qr_size) / 2
 
     # Draw QR code using ImageReader
     c.drawImage(ImageReader(img_buffer), qr_x, qr_y, width=qr_size, height=qr_size)
@@ -228,7 +228,7 @@ def draw_ticket_back(c: canvas.Canvas, ticket_id: int, card_data: List[int],
     c.setFont("Helvetica", id_font_size)
     id_str = f"{ticket_id:04d}"
     text_width = c.stringWidth(id_str, "Helvetica", id_font_size)
-    c.drawString(x + (ticket_width - text_width) / 2, qr_y - 5*mm*scale, id_str)
+    c.drawString(x + (ticket_width - text_width) / 2, qr_y - 4*mm*scale, id_str)
 
 
 def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf",
@@ -268,35 +268,41 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
     c = canvas.Canvas(output_pdf, pagesize=A4)
     page_width, page_height = A4
 
-    # Calculate positions for 3 tickets per page
-    # Fixed vertical spacing between tickets regardless of scale
-    ticket_width = 90 * mm * scale
-    ticket_height = 36 * mm * scale  # Actual height of ticket content
-    margin_left = (page_width - ticket_width) / 2
+    # ===== STANDARD PAGE LAYOUT =====
+    # Page height: 297mm (A4)
+    # Title position: 20mm from top (page_height - 20mm) if title exists
+    # Content starts: 40mm from top (leaving space for title)
+    #
+    # Dashed cutting lines:
+    #   Line 1: 125mm from top (page_height - 125mm)
+    #   Line 2: 210mm from top (page_height - 210mm)
+    #
+    # Ticket center positions (middle of each section):
+    #   Top section (40-125mm, 85mm tall): center at 82.5mm from top
+    #   Middle section (125-210mm, 85mm tall): center at 167.5mm from top
+    #   Bottom section (210-297mm, 87mm tall): center at 253.5mm from top
+    # ================================
 
     # Fixed positions for cutting lines (constant regardless of scale)
     cut_line_positions = [
-        page_height - 98 * mm,   # Between top and middle ticket
-        page_height - 196 * mm,  # Between middle and bottom ticket
+        page_height - 125 * mm,  # First cutting line
+        page_height - 210 * mm,  # Second cutting line
     ]
 
-    # Adjust starting position if there's a title
-    title_height = 0
-    if title:
-        title_height = 15 * mm
-
-    # Fixed spacing between tickets with some padding for scaled content
-    # Reduce spacing as tickets get larger to prevent overflow
-    base_y_offset = 50 * mm
-    ticket_spacing = 98 * mm  # Fixed spacing
-
-    # Positions for 3 tickets vertically on a page
-    # Each ticket starts at a fixed position, only the content scales
-    y_positions = [
-        page_height - base_y_offset - title_height,              # Top ticket
-        page_height - base_y_offset - ticket_spacing - title_height,     # Middle ticket
-        page_height - base_y_offset - 2 * ticket_spacing - title_height, # Bottom ticket
+    # Fixed positions for ticket centers (where tickets should be vertically centered)
+    ticket_center_positions = [
+        page_height - 82.5 * mm,   # Top ticket center
+        page_height - 167.5 * mm,  # Middle ticket center
+        page_height - 253.5 * mm,  # Bottom ticket center
     ]
+
+    # Title position
+    title_y_position = page_height - 20 * mm
+
+    # Calculate ticket dimensions
+    ticket_width = 90 * mm * scale
+    ticket_content_height = 36 * mm * scale  # Height of the actual bingo grid
+    margin_left = (page_width - ticket_width) / 2
 
     # Generate pages
     for page_start in range(0, num_tickets, 3):
@@ -311,7 +317,7 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
                 # Fallback to Helvetica if font not found
                 c.setFont('Helvetica-Bold', 18)
             title_width = c.stringWidth(title, title_font if title_font in pdfmetrics.getRegisteredFontNames() else 'Helvetica-Bold', 18)
-            c.drawString((page_width - title_width) / 2, page_height - 30*mm, title)
+            c.drawString((page_width - title_width) / 2, title_y_position, title)
 
         # Draw cutting lines (dashed)
         c.setDash(3, 3)
@@ -320,7 +326,10 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
         c.setDash()  # Reset to solid line
 
         for idx, (ticket_id, card_data) in enumerate(tickets_on_page):
-            draw_ticket_front(c, card_data, margin_left, y_positions[idx], ticket_id, scale)
+            # Calculate y position so ticket is centered at ticket_center_positions[idx]
+            # The draw function expects the bottom y coordinate of the ticket
+            ticket_y = ticket_center_positions[idx] - (ticket_content_height / 2)
+            draw_ticket_front(c, card_data, margin_left, ticket_y, ticket_id, scale)
 
         c.showPage()
 
@@ -332,7 +341,10 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
         c.setDash()  # Reset to solid line
 
         for idx, (ticket_id, card_data) in enumerate(reversed(tickets_on_page)):
-            draw_ticket_back(c, ticket_id, card_data, margin_left, y_positions[idx], scale)
+            # Use same center positions (reversed order for duplex printing)
+            reverse_idx = len(tickets_on_page) - 1 - idx
+            ticket_y = ticket_center_positions[reverse_idx] - (ticket_content_height / 2)
+            draw_ticket_back(c, ticket_id, card_data, margin_left, ticket_y, scale)
 
         c.showPage()
 

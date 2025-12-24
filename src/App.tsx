@@ -1,18 +1,245 @@
-import React from 'react';
-import { Box, Container, Heading, Text } from '@chakra-ui/react';
+import React, { useState } from 'react';
+import {
+  Box,
+  Container,
+  Heading,
+  Tabs,
+  Stack,
+  Button,
+  Input,
+  Text,
+  Grid,
+  GridItem,
+} from '@chakra-ui/react';
+import {
+  DialogBackdrop,
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogRoot,
+} from './components/ui/dialog';
+import { Toaster, toaster } from './components/ui/toaster';
+import QRScanner from './components/QRScanner';
+import TicketDisplay from './components/TicketDisplay';
 import './App.css';
 
+export interface TicketData {
+  id: number;
+  numbers: number[];
+}
+
 function App() {
+  const [calledNumbers, setCalledNumbers] = useState<Set<number>>(new Set());
+  const [inputValue, setInputValue] = useState('');
+  const [scannedTicket, setScannedTicket] = useState<TicketData | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleAddNumber = () => {
+    const num = parseInt(inputValue);
+    if (isNaN(num) || num < 1 || num > 90) {
+      toaster.create({
+        title: 'Invalid number',
+        description: 'Please enter a number between 1 and 90',
+        type: 'error',
+        duration: 2000,
+      });
+      return;
+    }
+
+    if (calledNumbers.has(num)) {
+      toaster.create({
+        title: 'Already called',
+        description: `Number ${num} has already been called`,
+        type: 'warning',
+        duration: 2000,
+      });
+      return;
+    }
+
+    setCalledNumbers(new Set([...calledNumbers, num]));
+    setInputValue('');
+    toaster.create({
+      title: 'Number called',
+      description: `Number ${num} has been called`,
+      type: 'success',
+      duration: 1000,
+    });
+  };
+
+  const handleQRScan = (data: TicketData) => {
+    setScannedTicket(data);
+    setIsDialogOpen(true);
+  };
+
+  const sortedCalledNumbers = Array.from(calledNumbers).sort((a, b) => b - a);
+
   return (
-    <Container maxW="container.xl" py={8}>
-      <Box textAlign="center">
-        <Heading as="h1" size="2xl" mb={4}>
-          Bingo Game Manager
-        </Heading>
-        <Text fontSize="xl" color="gray.600">
-          Welcome to the Bingo Game Manager
-        </Text>
-      </Box>
+    <Container maxW="container.md" py={4}>
+      <Stack gap={4} align="stretch">
+        <Box textAlign="center">
+          <Heading as="h1" size="xl" mb={2}>
+            Bingo Game Manager
+          </Heading>
+          <Text fontSize="md" color="gray.600">
+            British Bingo (1-90)
+          </Text>
+        </Box>
+
+        <Tabs.Root defaultValue="input" fitted variant="enclosed">
+          <Tabs.List>
+            <Tabs.Trigger value="input">Input</Tabs.Trigger>
+            <Tabs.Trigger value="grid">Grid View</Tabs.Trigger>
+            <Tabs.Trigger value="scan">Scan Ticket</Tabs.Trigger>
+          </Tabs.List>
+
+          {/* Input and History Tab */}
+          <Tabs.Content value="input">
+              <Stack gap={4} align="stretch">
+                <Box>
+                  <Text fontWeight="bold" mb={2}>Call a Number</Text>
+                  <Stack direction="row" gap={2}>
+                    <Input
+                      type="number"
+                      placeholder="Enter number (1-90)"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleAddNumber();
+                        }
+                      }}
+                      min={1}
+                      max={90}
+                    />
+                    <Button colorScheme="blue" onClick={handleAddNumber}>
+                      Call
+                    </Button>
+                  </Stack>
+                </Box>
+
+                <Box>
+                  <Stack direction="row" justify="space-between" mb={2}>
+                    <Text fontWeight="bold">
+                      Called Numbers ({calledNumbers.size}/90)
+                    </Text>
+                    {calledNumbers.size > 0 && (
+                      <Button
+                        size="sm"
+                        colorScheme="red"
+                        variant="outline"
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to reset all called numbers?')) {
+                            setCalledNumbers(new Set());
+                            toaster.create({
+                              title: 'Reset complete',
+                              description: 'All called numbers have been cleared',
+                              type: 'info',
+                              duration: 2000,
+                            });
+                          }
+                        }}
+                      >
+                        Reset
+                      </Button>
+                    )}
+                  </Stack>
+
+                  {calledNumbers.size === 0 ? (
+                    <Box
+                      p={8}
+                      textAlign="center"
+                      bg="gray.50"
+                      borderRadius="md"
+                      border="1px solid"
+                      borderColor="gray.200"
+                    >
+                      <Text color="gray.500">No numbers called yet</Text>
+                    </Box>
+                  ) : (
+                    <Box
+                      maxH="400px"
+                      overflowY="auto"
+                      p={4}
+                      bg="gray.50"
+                      borderRadius="md"
+                      border="1px solid"
+                      borderColor="gray.200"
+                    >
+                      <Grid templateColumns="repeat(5, 1fr)" gap={2}>
+                        {sortedCalledNumbers.map((num) => (
+                          <GridItem key={num}>
+                            <Box
+                              p={3}
+                              bg="blue.500"
+                              color="white"
+                              textAlign="center"
+                              borderRadius="md"
+                              fontWeight="bold"
+                              fontSize="lg"
+                            >
+                              {num}
+                            </Box>
+                          </GridItem>
+                        ))}
+                      </Grid>
+                    </Box>
+                  )}
+                </Box>
+              </Stack>
+          </Tabs.Content>
+
+          {/* Grid View Tab */}
+          <Tabs.Content value="grid">
+              <Stack gap={3} align="stretch">
+                <Text fontWeight="bold" textAlign="center">
+                  All Numbers (1-90)
+                </Text>
+                <Grid templateColumns="repeat(9, 1fr)" gap={1}>
+                  {Array.from({ length: 90 }, (_, i) => i + 1).map((num) => {
+                    const isCalled = calledNumbers.has(num);
+                    return (
+                      <GridItem key={num}>
+                        <Box
+                          p={2}
+                          bg={isCalled ? 'green.500' : 'gray.200'}
+                          color={isCalled ? 'white' : 'gray.700'}
+                          textAlign="center"
+                          borderRadius="md"
+                          fontWeight={isCalled ? 'bold' : 'normal'}
+                          fontSize="sm"
+                        >
+                          {num}
+                        </Box>
+                      </GridItem>
+                    );
+                  })}
+                </Grid>
+              </Stack>
+          </Tabs.Content>
+
+          {/* Scan Ticket Tab */}
+          <Tabs.Content value="scan">
+            <QRScanner onScan={handleQRScan} />
+          </Tabs.Content>
+        </Tabs.Root>
+      </Stack>
+
+      {/* Ticket Display Dialog */}
+      <DialogRoot open={isDialogOpen} onOpenChange={(e: { open: boolean }) => setIsDialogOpen(e.open)} size="lg">
+        <DialogBackdrop />
+        <DialogContent>
+          <DialogHeader>Scanned Ticket #{scannedTicket?.id}</DialogHeader>
+          <DialogCloseTrigger />
+          <DialogBody pb={6}>
+            {scannedTicket && (
+              <TicketDisplay ticket={scannedTicket} calledNumbers={calledNumbers} />
+            )}
+          </DialogBody>
+        </DialogContent>
+      </DialogRoot>
+
+      <Toaster />
     </Container>
   );
 }

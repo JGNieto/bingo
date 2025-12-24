@@ -84,11 +84,44 @@ QR code specifications:
 
 ## PDF Layout
 
-- **Page size**: A4
+- **Page size**: A4 (297mm height × 210mm width)
 - **Tickets per page**: 3 (vertical layout)
 - **Pages**: Alternating front and back
   - Odd pages: Front side with numbers
   - Even pages: Back side with QR codes (reversed order for duplex printing)
+
+### Standard Page Layout
+
+The page follows a fixed layout regardless of scale factor:
+
+```
+┌─────────────────────────────────┐  0mm (top)
+│                                 │
+│  Title (if present)             │  20mm from top
+│                                 │
+├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│  40mm (content starts)
+│                                 │
+│     [Ticket 1 - Centered]       │  Center: 82.5mm from top
+│                                 │
+├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│  125mm (cutting line)
+│                                 │
+│     [Ticket 2 - Centered]       │  Center: 167.5mm from top
+│                                 │
+├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│  210mm (cutting line)
+│                                 │
+│     [Ticket 3 - Centered]       │  Center: 253.5mm from top
+│                                 │
+└─────────────────────────────────┘  297mm (bottom)
+```
+
+**Key positions:**
+- **Title**: 20mm from top (if title provided)
+- **Content start**: 40mm from top (always, leaving room for title)
+- **Dashed cutting lines**: 125mm and 210mm from top
+- **Ticket centers**: 82.5mm, 167.5mm, and 253.5mm from top
+- Tickets are vertically centered in their sections
+- QR codes on back are centered at the same positions as front tickets
+- Cutting lines remain at fixed positions regardless of scale factor
 
 ## CSV Format
 
