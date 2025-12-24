@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -29,11 +29,44 @@ export interface TicketData {
   numbers: number[];
 }
 
+const SESSION_STORAGE_KEY = 'bingo-called-numbers';
+
 function App() {
-  const [calledNumbers, setCalledNumbers] = useState<Set<number>>(new Set());
+  // Initialize from session storage
+  const [calledNumbersArray, setCalledNumbersArray] = useState<number[]>(() => {
+    try {
+      const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (!stored) return [];
+
+      const parsed = JSON.parse(stored);
+      // Validate that it's an array
+      if (Array.isArray(parsed)) {
+        return parsed;
+      } else {
+        console.warn('Invalid session storage data, clearing');
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error loading from session storage:', error);
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return [];
+    }
+  });
+
+  const calledNumbers = new Set(calledNumbersArray);
   const [inputValue, setInputValue] = useState('');
   const [scannedTicket, setScannedTicket] = useState<TicketData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Save to session storage whenever called numbers change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(calledNumbersArray));
+    } catch (error) {
+      console.error('Error saving to session storage:', error);
+    }
+  }, [calledNumbersArray]);
 
   const handleAddNumber = () => {
     const num = parseInt(inputValue);
@@ -57,7 +90,7 @@ function App() {
       return;
     }
 
-    setCalledNumbers(new Set([...calledNumbers, num]));
+    setCalledNumbersArray([...calledNumbersArray, num]);
     setInputValue('');
     toaster.create({
       title: 'Number called',
@@ -67,12 +100,26 @@ function App() {
     });
   };
 
+  const handleUndo = () => {
+    if (calledNumbersArray.length === 0) return;
+
+    const lastNumber = calledNumbersArray[calledNumbersArray.length - 1];
+    setCalledNumbersArray(calledNumbersArray.slice(0, -1));
+    toaster.create({
+      title: 'Number removed',
+      description: `Number ${lastNumber} has been removed`,
+      type: 'info',
+      duration: 1500,
+    });
+  };
+
   const handleQRScan = (data: TicketData) => {
     setScannedTicket(data);
     setIsDialogOpen(true);
   };
 
-  const sortedCalledNumbers = Array.from(calledNumbers).sort((a, b) => b - a);
+  // Display numbers in reverse order (most recent first)
+  const sortedCalledNumbers = [...calledNumbersArray].reverse();
 
   return (
     <Container maxW="container.md" py={4}>
@@ -101,6 +148,8 @@ function App() {
                   <Stack direction="row" gap={2}>
                     <Input
                       type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       placeholder="Enter number (1-90)"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
@@ -111,9 +160,17 @@ function App() {
                       }}
                       min={1}
                       max={90}
+                      flex={1}
                     />
                     <Button colorScheme="blue" onClick={handleAddNumber}>
                       Call
+                    </Button>
+                    <Button
+                      colorScheme="orange"
+                      onClick={handleUndo}
+                      disabled={calledNumbersArray.length === 0}
+                    >
+                      Undo
                     </Button>
                   </Stack>
                 </Box>
@@ -121,16 +178,16 @@ function App() {
                 <Box>
                   <Stack direction="row" justify="space-between" mb={2}>
                     <Text fontWeight="bold">
-                      Called Numbers ({calledNumbers.size}/90)
+                      Called Numbers ({calledNumbersArray.length}/90)
                     </Text>
-                    {calledNumbers.size > 0 && (
+                    {calledNumbersArray.length > 0 && (
                       <Button
                         size="sm"
                         colorScheme="red"
                         variant="outline"
                         onClick={() => {
                           if (window.confirm('Are you sure you want to reset all called numbers?')) {
-                            setCalledNumbers(new Set());
+                            setCalledNumbersArray([]);
                             toaster.create({
                               title: 'Reset complete',
                               description: 'All called numbers have been cleared',
@@ -145,7 +202,7 @@ function App() {
                     )}
                   </Stack>
 
-                  {calledNumbers.size === 0 ? (
+                  {calledNumbersArray.length === 0 ? (
                     <Box
                       p={8}
                       textAlign="center"
@@ -202,8 +259,8 @@ function App() {
                       <GridItem key={num}>
                         <Box
                           p={2}
-                          bg={isCalled ? 'green.500' : 'gray.200'}
-                          color={isCalled ? 'white' : 'gray.700'}
+                          bg={isCalled ? 'green.500' : 'red.200'}
+                          color={isCalled ? 'white' : 'red.900'}
                           textAlign="center"
                           borderRadius="md"
                           fontWeight={isCalled ? 'bold' : 'normal'}
@@ -215,6 +272,32 @@ function App() {
                     );
                   })}
                 </Grid>
+
+                {/* Missing Numbers List */}
+                <Box
+                  p={4}
+                  bg="red.50"
+                  borderRadius="md"
+                  border="1px solid"
+                  borderColor="red.200"
+                >
+                  <Text fontWeight="bold" mb={2} color="red.700">
+                    Missing Numbers ({90 - calledNumbersArray.length})
+                  </Text>
+                  {calledNumbersArray.length === 90 ? (
+                    <Text fontSize="sm" color="red.600">
+                      All numbers have been called!
+                    </Text>
+                  ) : (
+                    <Box>
+                      <Text fontSize="sm" color="red.700" mb={2}>
+                        {Array.from({ length: 90 }, (_, i) => i + 1)
+                          .filter(num => !calledNumbers.has(num))
+                          .join(', ')}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
               </Stack>
           </Tabs.Content>
 
