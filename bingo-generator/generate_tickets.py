@@ -18,6 +18,8 @@ try:
     from reportlab.pdfgen import canvas
     from reportlab.lib import colors
     from reportlab.lib.utils import ImageReader
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
     import qrcode
     from io import BytesIO
     from PIL import Image
@@ -256,29 +258,44 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
         card_data = card.to_flat_list()
         tickets.append((ticket_id, card_data))
 
+    # Register custom fonts
+    script_dir = Path(__file__).parent
+    christmas_font_path = script_dir / "ChristmasMerryland.ttf"
+    if christmas_font_path.exists():
+        pdfmetrics.registerFont(TTFont('Christmas Merryland', str(christmas_font_path)))
+
     # Create PDF
     c = canvas.Canvas(output_pdf, pagesize=A4)
     page_width, page_height = A4
 
-    # Calculate positions for 3 tickets per page (scaled)
+    # Calculate positions for 3 tickets per page
+    # Fixed vertical spacing between tickets regardless of scale
     ticket_width = 90 * mm * scale
-    ticket_height = 50 * mm * scale
+    ticket_height = 36 * mm * scale  # Actual height of ticket content
     margin_left = (page_width - ticket_width) / 2
 
-    # Base spacing for tickets
-    base_y_offset = 70 * mm
-    ticket_spacing = 70 * mm
+    # Fixed positions for cutting lines (constant regardless of scale)
+    cut_line_positions = [
+        page_height - 98 * mm,   # Between top and middle ticket
+        page_height - 196 * mm,  # Between middle and bottom ticket
+    ]
 
     # Adjust starting position if there's a title
     title_height = 0
     if title:
         title_height = 15 * mm
 
+    # Fixed spacing between tickets with some padding for scaled content
+    # Reduce spacing as tickets get larger to prevent overflow
+    base_y_offset = 50 * mm
+    ticket_spacing = 98 * mm  # Fixed spacing
+
     # Positions for 3 tickets vertically on a page
+    # Each ticket starts at a fixed position, only the content scales
     y_positions = [
-        page_height - base_y_offset * scale - title_height,  # Top ticket
-        page_height - (base_y_offset + ticket_spacing) * scale - title_height,  # Middle ticket
-        page_height - (base_y_offset + 2 * ticket_spacing) * scale - title_height,  # Bottom ticket
+        page_height - base_y_offset - title_height,              # Top ticket
+        page_height - base_y_offset - ticket_spacing - title_height,     # Middle ticket
+        page_height - base_y_offset - 2 * ticket_spacing - title_height, # Bottom ticket
     ]
 
     # Generate pages
@@ -288,9 +305,19 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
         # Draw front side
         if title:
             # Draw title at top of page
-            c.setFont(title_font, 18)
-            title_width = c.stringWidth(title, title_font, 18)
+            try:
+                c.setFont(title_font, 18)
+            except KeyError:
+                # Fallback to Helvetica if font not found
+                c.setFont('Helvetica-Bold', 18)
+            title_width = c.stringWidth(title, title_font if title_font in pdfmetrics.getRegisteredFontNames() else 'Helvetica-Bold', 18)
             c.drawString((page_width - title_width) / 2, page_height - 30*mm, title)
+
+        # Draw cutting lines (dashed)
+        c.setDash(3, 3)
+        for cut_y in cut_line_positions:
+            c.line(20*mm, cut_y, page_width - 20*mm, cut_y)
+        c.setDash()  # Reset to solid line
 
         for idx, (ticket_id, card_data) in enumerate(tickets_on_page):
             draw_ticket_front(c, card_data, margin_left, y_positions[idx], ticket_id, scale)
@@ -298,6 +325,12 @@ def generate_tickets_pdf(num_tickets: int, output_pdf: str = "bingo_tickets.pdf"
         c.showPage()
 
         # Draw back side (reversed order for proper alignment when printed duplex)
+        # Draw cutting lines (dashed)
+        c.setDash(3, 3)
+        for cut_y in cut_line_positions:
+            c.line(20*mm, cut_y, page_width - 20*mm, cut_y)
+        c.setDash()  # Reset to solid line
+
         for idx, (ticket_id, card_data) in enumerate(reversed(tickets_on_page)):
             draw_ticket_back(c, ticket_id, card_data, margin_left, y_positions[idx], scale)
 
