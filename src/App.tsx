@@ -29,7 +29,10 @@ export interface TicketData {
   numbers: number[];
 }
 
-const SESSION_STORAGE_KEY = 'bingo-called-numbers';
+const SESSION_STORAGE_KEY = 'bingo-called-numbers-v2';
+
+// Numbers that are excluded from this game (will never be called)
+const MISSING_NUMBERS = [20, 72];
 
 function App() {
   // Initialize from session storage
@@ -58,6 +61,8 @@ function App() {
   const [inputValue, setInputValue] = useState('');
   const [scannedTicket, setScannedTicket] = useState<TicketData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('input');
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   // Save to session storage whenever called numbers change
   useEffect(() => {
@@ -68,12 +73,32 @@ function App() {
     }
   }, [calledNumbersArray]);
 
+  // Auto-focus input when on input tab
+  useEffect(() => {
+    if (activeTab === 'input') {
+      // Small delay to ensure the DOM is ready
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [activeTab]);
+
   const handleAddNumber = () => {
     const num = parseInt(inputValue);
     if (isNaN(num) || num < 1 || num > 90) {
       toaster.create({
         title: 'Invalid number',
         description: 'Please enter a number between 1 and 90',
+        type: 'error',
+        duration: 2000,
+      });
+      return;
+    }
+
+    if (MISSING_NUMBERS.includes(num)) {
+      toaster.create({
+        title: 'Missing number',
+        description: `Number ${num} is excluded from this game`,
         type: 'error',
         duration: 2000,
       });
@@ -98,6 +123,11 @@ function App() {
       type: 'success',
       duration: 1000,
     });
+
+    // Refocus the input for quick consecutive entry
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
   };
 
   const handleUndo = () => {
@@ -133,7 +163,12 @@ function App() {
           </Text>
         </Box>
 
-        <Tabs.Root defaultValue="input" fitted variant="enclosed">
+        <Tabs.Root
+          value={activeTab}
+          onValueChange={(e:any) => setActiveTab(e.value)}
+          fitted
+          variant="enclosed"
+        >
           <Tabs.List>
             <Tabs.Trigger value="input">Input</Tabs.Trigger>
             <Tabs.Trigger value="grid">Grid View</Tabs.Trigger>
@@ -147,13 +182,14 @@ function App() {
                   <Text fontWeight="bold" mb={2}>Call a Number</Text>
                   <Stack direction="row" gap={2}>
                     <Input
+                      ref={inputRef}
                       type="number"
                       inputMode="numeric"
                       pattern="[0-9]*"
                       placeholder="Enter number (1-90)"
                       value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyPress={(e) => {
+                      onChange={(e:any) => setInputValue(e.target.value)}
+                      onKeyPress={(e:any) => {
                         if (e.key === 'Enter') {
                           handleAddNumber();
                         }
@@ -161,6 +197,7 @@ function App() {
                       min={1}
                       max={90}
                       flex={1}
+                      fontSize="16px"
                     />
                     <Button colorScheme="blue" onClick={handleAddNumber}>
                       Call
@@ -178,7 +215,7 @@ function App() {
                 <Box>
                   <Stack direction="row" justify="space-between" mb={2}>
                     <Text fontWeight="bold">
-                      Called Numbers ({calledNumbersArray.length}/90)
+                      Called Numbers ({calledNumbersArray.length}/{90 - MISSING_NUMBERS.length})
                     </Text>
                     {calledNumbersArray.length > 0 && (
                       <Button
@@ -188,6 +225,7 @@ function App() {
                         onClick={() => {
                           if (window.confirm('Are you sure you want to reset all called numbers?')) {
                             setCalledNumbersArray([]);
+                            sessionStorage.removeItem(SESSION_STORAGE_KEY);
                             toaster.create({
                               title: 'Reset complete',
                               description: 'All called numbers have been cleared',
@@ -255,15 +293,28 @@ function App() {
                 <Grid templateColumns="repeat(9, 1fr)" gap={1}>
                   {Array.from({ length: 90 }, (_, i) => i + 1).map((num) => {
                     const isCalled = calledNumbers.has(num);
+                    const isMissing = MISSING_NUMBERS.includes(num);
                     return (
                       <GridItem key={num}>
                         <Box
                           p={2}
-                          bg={isCalled ? 'green.500' : 'red.200'}
-                          color={isCalled ? 'white' : 'red.900'}
+                          bg={
+                            isCalled
+                              ? 'green.500'
+                              : isMissing
+                              ? 'red.400'
+                              : 'gray.200'
+                          }
+                          color={
+                            isCalled
+                              ? 'white'
+                              : isMissing
+                              ? 'white'
+                              : 'gray.700'
+                          }
                           textAlign="center"
                           borderRadius="md"
-                          fontWeight={isCalled ? 'bold' : 'normal'}
+                          fontWeight={isCalled || isMissing ? 'bold' : 'normal'}
                           fontSize="sm"
                         >
                           {num}
@@ -273,31 +324,50 @@ function App() {
                   })}
                 </Grid>
 
-                {/* Missing Numbers List */}
+                {/* Legend */}
                 <Box
-                  p={4}
-                  bg="red.50"
+                  p={3}
+                  bg="gray.50"
                   borderRadius="md"
                   border="1px solid"
-                  borderColor="red.200"
+                  borderColor="gray.200"
                 >
-                  <Text fontWeight="bold" mb={2} color="red.700">
-                    Missing Numbers ({90 - calledNumbersArray.length})
+                  <Text fontSize="sm" fontWeight="bold" mb={2}>
+                    Legend:
                   </Text>
-                  {calledNumbersArray.length === 90 ? (
-                    <Text fontSize="sm" color="red.600">
-                      All numbers have been called!
-                    </Text>
-                  ) : (
-                    <Box>
-                      <Text fontSize="sm" color="red.700" mb={2}>
-                        {Array.from({ length: 90 }, (_, i) => i + 1)
-                          .filter(num => !calledNumbers.has(num))
-                          .join(', ')}
-                      </Text>
+                  <Grid templateColumns="repeat(1, 1fr)" gap={2}>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Box w="20px" h="20px" bg="green.500" borderRadius="sm" />
+                      <Text fontSize="sm">Called numbers</Text>
                     </Box>
-                  )}
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Box w="20px" h="20px" bg="gray.200" borderRadius="sm" />
+                      <Text fontSize="sm">Not yet called</Text>
+                    </Box>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Box w="20px" h="20px" bg="red.400" borderRadius="sm" />
+                      <Text fontSize="sm">Missing from game (will never be called)</Text>
+                    </Box>
+                  </Grid>
                 </Box>
+
+                {/* Missing Numbers List */}
+                {MISSING_NUMBERS.length > 0 && (
+                  <Box
+                    p={4}
+                    bg="red.50"
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor="red.200"
+                  >
+                    <Text fontWeight="bold" mb={2} color="red.700">
+                      Missing Numbers ({MISSING_NUMBERS.length})
+                    </Text>
+                    <Text fontSize="sm" color="red.700">
+                      These numbers are excluded from this game: {MISSING_NUMBERS.join(', ')}
+                    </Text>
+                  </Box>
+                )}
               </Stack>
           </Tabs.Content>
 
@@ -309,12 +379,12 @@ function App() {
       </Stack>
 
       {/* Ticket Display Dialog */}
-      <DialogRoot open={isDialogOpen} onOpenChange={(e: { open: boolean }) => setIsDialogOpen(e.open)} size="lg">
+      <DialogRoot open={isDialogOpen} onOpenChange={(e: { open: boolean }) => setIsDialogOpen(e.open)} size={{ base: 'full', sm: 'xl' }}>
         <DialogBackdrop />
-        <DialogContent>
+        <DialogContent maxW={{ base: '100vw', sm: '90vw', md: '600px' }}>
           <DialogHeader>Scanned Ticket #{scannedTicket?.id}</DialogHeader>
           <DialogCloseTrigger />
-          <DialogBody pb={6}>
+          <DialogBody pb={6} overflowX="auto">
             {scannedTicket && (
               <TicketDisplay ticket={scannedTicket} calledNumbers={calledNumbers} />
             )}

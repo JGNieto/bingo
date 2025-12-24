@@ -71,8 +71,9 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, calledNumbers }) 
                       borderColor="gray.400"
                     >
                       <Box
-                        p={3}
-                        minH="50px"
+                        p={{ base: 1, sm: 2, md: 3 }}
+                        minH={{ base: '35px', sm: '40px', md: '50px' }}
+                        minW={{ base: '35px', sm: '40px', md: '50px' }}
                         display="flex"
                         alignItems="center"
                         justifyContent="center"
@@ -93,14 +94,10 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, calledNumbers }) 
                             : 'gray.800'
                         }
                         fontWeight={isCalled ? 'bold' : 'normal'}
-                        fontSize="lg"
+                        fontSize={{ base: 'sm', sm: 'md', md: 'lg' }}
                         position="relative"
                       >
-                        {isEmpty ? (
-                          <Text fontSize="xs">-</Text>
-                        ) : (
-                          <Text>{num}</Text>
-                        )}
+                        <Text>{isEmpty ? '-' : num}</Text>
                       </Box>
                     </GridItem>
                   );
