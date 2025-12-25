@@ -1,0 +1,13 @@
+- Align grid to be the same shape as the physical grid of balls for easier comparison.
+- Better color scheme for carton display (maybe orange for called and green for line).
+- Allow to mark rows as done, so that the same player can't claim the same row twice.
+- Know how far each person is and whether they technically would have had the ability to call bingo and haven't realized.
+- Merge QR code for one paper rather than for each ticket.
+- Change missing numbers from the UI.
+
+
+To implement this, maybe it makes sense to make use of the firestore database and keep track of state.
+Instead of encoding the layout of the ticket, it could simply encode an ID and have access to a database of tickets.
+
+Reach: make another mode of the app in "TV mode" so that everyone can see which numbers have been called.
+This could be achieved simply if synced through firestore. Maybe it makes sense to start using random numbers
