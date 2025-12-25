@@ -133,8 +133,18 @@ function App() {
   const handleCallButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
     // Prevent the button from stealing focus from the input
     e.preventDefault();
+    e.stopPropagation();
     handleAddNumber();
     // Keep focus on input to maintain keyboard
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleCallButtonTouch = (e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleAddNumber();
     setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
@@ -156,8 +166,18 @@ function App() {
   const handleUndoButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
     // Prevent the button from stealing focus from the input
     e.preventDefault();
+    e.stopPropagation();
     handleUndo();
     // Keep focus on input to maintain keyboard
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleUndoButtonTouch = (e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleUndo();
     setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
@@ -219,13 +239,13 @@ function App() {
                       flex={1}
                       fontSize="16px"
                     />
-                    <Button colorScheme="blue" onMouseDown={handleCallButtonClick} onTouchStart={handleCallButtonClick}>
+                    <Button colorScheme="blue" onTouchStart={handleCallButtonTouch} onMouseDown={handleCallButtonClick}>
                       Cantar
                     </Button>
                     <Button
                       colorScheme="orange"
+                      onTouchStart={handleUndoButtonTouch}
                       onMouseDown={handleUndoButtonClick}
-                      onTouchStart={handleUndoButtonClick}
                       disabled={calledNumbersArray.length === 0}
                     >
                       Deshacer
